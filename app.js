@@ -391,25 +391,9 @@ function App() {
     }));
   }
 
-  function resetSample() {
-    if (!window.confirm("载入示例会覆盖当前数据，确定继续？")) return;
-    const next = copyBoard(sampleBoard);
-    setBoard(next);
-    setTimelineDraft({ ...next.timeline });
-    setSelectedCell(null);
-    setTapRangeStart(null);
-  }
-
   function clearAll() {
     if (!window.confirm("确定清空整个推理板？")) return;
-    const empty = {
-      timeline: { startDate: todayString(), start: "18:00", endDate: todayString(), end: "22:00", stepMode: "5", customStep: 7 },
-      people: [],
-      timeSlots: generateSlots(todayString(), "18:00", todayString(), "22:00", 5),
-      cells: {},
-      archive: [],
-      weaponRecords: [],
-    };
+    const empty = createEmptyBoard();
     setBoard(empty);
     setTimelineDraft({ ...empty.timeline });
     setSelectedCell(null);
@@ -417,7 +401,7 @@ function App() {
   }
 
   return h("main", { className: "app-shell" }, [
-    h(Header, { key: "header", resetSample, clearAll }),
+    h(Header, { key: "header", clearAll }),
     h("section", { className: `workspace${selected ? " has-editor" : " no-editor"}`, key: "workspace" }, [
       h(Matrix, {
         key: "matrix",
@@ -469,14 +453,13 @@ function App() {
   ]);
 }
 
-function Header({ resetSample, clearAll }) {
+function Header({ clearAll }) {
   return h("header", { className: "topbar" }, [
     h("div", { key: "title" }, [
       h("h1", { key: "h1" }, "剧本杀推演时间线"),
       h("p", { key: "p" }, "横向时间轴，纵向人物线；像表格一样复盘行动、证词和矛盾。"),
     ]),
     h("div", { className: "top-actions", key: "actions" }, [
-      h("button", { className: "secondary-btn", type: "button", onClick: resetSample, key: "sample" }, "载入示例"),
       h("button", { className: "danger-btn", type: "button", onClick: clearAll, key: "clear" }, "清空"),
     ]),
   ]);
@@ -1064,10 +1047,23 @@ function ArchivePanel({ archive }) {
 function loadBoard() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? normalizeBoard(JSON.parse(stored)) : copyBoard(sampleBoard);
+    // localStorage 保存和读取逻辑：刷新页面只读取当前浏览器已保存的数据；没有数据时创建空白板，不回到原始示例。
+    return stored ? normalizeBoard(JSON.parse(stored)) : createEmptyBoard();
   } catch {
-    return copyBoard(sampleBoard);
+    return createEmptyBoard();
   }
+}
+
+function createEmptyBoard() {
+  const today = todayString();
+  return {
+    timeline: { startDate: today, start: "18:00", endDate: today, end: "22:00", stepMode: "5", customStep: 7 },
+    people: [],
+    timeSlots: generateSlots(today, "18:00", today, "22:00", 5),
+    cells: {},
+    archive: [],
+    weaponRecords: [],
+  };
 }
 
 function normalizeBoard(board) {

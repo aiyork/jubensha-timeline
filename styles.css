@@ -151,6 +151,18 @@ h1 {
   padding: 14px;
 }
 
+.collapsible-card summary {
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: 900;
+  list-style-position: inside;
+  min-height: 28px;
+}
+
+.collapsible-card .card-body {
+  margin-top: 11px;
+}
+
 .timeline-settings h2,
 .people-manager h2,
 .weapon-tracker h2,
@@ -506,8 +518,16 @@ textarea:focus {
   outline-offset: -3px;
 }
 
-.timeline-cell:hover {
-  background-image: linear-gradient(rgba(47, 111, 115, 0.08), rgba(47, 111, 115, 0.08));
+.timeline-cell.tap-start {
+  outline: 3px dashed var(--accent-dark);
+  outline-offset: -4px;
+}
+
+/* 避免 hover 依赖的逻辑：只有真正支持鼠标 hover 的设备才显示悬停高亮，触摸设备依靠 selected/tap-start。 */
+@media (hover: hover) and (pointer: fine) {
+  .timeline-cell:hover {
+    background-image: linear-gradient(rgba(47, 111, 115, 0.08), rgba(47, 111, 115, 0.08));
+  }
 }
 
 .event-cell {
@@ -526,6 +546,8 @@ textarea:focus {
   color: var(--ink);
   text-align: left;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
   cursor: crosshair;
 }
 
@@ -696,8 +718,15 @@ textarea:focus {
   margin-top: 14px;
 }
 
-/* iPad / 平板适配：表格仍优先显示，编辑器下移，减少横向拥挤。 */
-@media (max-width: 1180px) {
+/* 响应式布局断点：电脑端 >=1024px 保持表格左侧、编辑面板右侧的宽屏布局。 */
+@media (min-width: 1024px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+
+/* iPad / 平板适配：768px-1023px 表格优先显示，编辑面板下移，避免挤压横向时间线。 */
+@media (min-width: 768px) and (max-width: 1023px) {
   :root {
     --person-col-width: 96px;
     --time-col-width: 78px;
@@ -717,15 +746,22 @@ textarea:focus {
   .editor-panel {
     position: static;
   }
+
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn,
+  .icon-btn {
+    min-height: 40px;
+  }
 }
 
-/* 手机与小平板适配：控制区改为单列，时间线保持横向滚动。 */
-@media (max-width: 820px) {
+/* 手机端布局差异：<768px 改为单列，编辑面板变成底部弹窗，设置区可折叠。 */
+@media (max-width: 767px) {
   :root {
     --person-col-width: 88px;
     --time-col-width: 70px;
-    --timeline-row-height: 52px;
-    --timeline-head-height: 30px;
+    --timeline-row-height: 56px;
+    --timeline-head-height: 34px;
     --timeline-cell-pad: 4px;
   }
 
@@ -758,9 +794,9 @@ textarea:focus {
   .secondary-btn,
   .danger-btn,
   .icon-btn {
-    min-height: 34px;
-    padding: 0 10px;
-    font-size: 13px;
+    min-height: 42px;
+    padding: 0 12px;
+    font-size: 14px;
   }
 
   .settings-grid,
@@ -788,7 +824,8 @@ textarea:focus {
   }
 
   .matrix-scroll {
-    max-height: 58vh;
+    max-height: 64vh;
+    -webkit-overflow-scrolling: touch;
   }
 
   .corner-cell,
@@ -804,7 +841,55 @@ textarea:focus {
   }
 
   .cell-action {
-    font-size: 11px;
+    font-size: 12px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  input,
+  select {
+    min-height: 42px;
+  }
+
+  .collapsible-card summary {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+  }
+
+  .empty-editor {
+    display: none;
+  }
+
+  .editor-panel:not(.empty-editor) {
+    /* 手机端编辑面板切换逻辑：选中格子后作为底部弹窗出现，不再挤压时间线表格。 */
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    top: auto;
+    z-index: 20;
+    max-height: min(78vh, 720px);
+    overflow: auto;
+    border: 1px solid var(--line-strong);
+    box-shadow: 0 18px 46px rgba(25, 20, 12, 0.26);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .editor-title {
+    position: sticky;
+    top: -10px;
+    z-index: 2;
+    background: var(--panel);
+    padding-top: 4px;
+  }
+
+  .cell-button {
+    cursor: pointer;
   }
 }
 

@@ -582,10 +582,12 @@ function Matrix({ board, visibleSlots, selectedCell, selectRange, startRangeSele
 function EventBlock({ person, segment, selected, onPick }) {
   const cell = segment.cell;
   const hasConflict = cell.status === "conflict" || Boolean(cell.conflict.trim());
-  const title = `${person.name} ${segment.startSlot.label} 到 ${segment.endSlot.label}`;
+  const eventRange = formatEventRange(segment.startSlot, segment.endSlot);
+  const title = buildEventTooltip(person, segment, cell);
   // 事件块宽度和高度计算逻辑：宽度由 td colSpan 覆盖多个时间列，高度由 CSS 的行高变量填满当前人物行。
   return h("td", { className: `timeline-cell event-cell event-status-${cell.status}${selected ? " selected" : ""}`, colSpan: segment.colSpan }, [
     h("button", { className: "cell-button event-button", type: "button", onClick: onPick, title, style: { "--person-color": person.color || getPersonColor(0) } }, [
+      h("span", { className: "event-time", key: "time" }, eventRange),
       cell.action ? h("span", { className: "cell-action", key: "action" }, cell.action) : null,
       cell.location ? h("span", { className: "cell-location", key: "location" }, cell.location) : null,
       h("span", { className: "cell-status", key: "status" }, statusLabel(cell.status)),
@@ -964,6 +966,26 @@ function formatHeaderTime(slot) {
   if (Number.isFinite(slot.start)) return minutesToTime(slot.start);
   const match = String(slot.label || "").match(/(\d{1,2})[:：](\d{2})/);
   return match ? `${String(Number(match[1])).padStart(2, "0")}:${match[2]}` : "";
+}
+
+function formatEventRange(startSlot, endSlot) {
+  return `${formatHeaderTime(startSlot)}-${minutesToTime(endSlot.end)}`;
+}
+
+function buildEventTooltip(person, segment, cell) {
+  const lines = [
+    `人物: ${person.name}`,
+    `时间: ${formatEventRange(segment.startSlot, segment.endSlot)}`,
+    cell.action ? `行动: ${cell.action}` : "",
+    cell.location ? `地点: ${cell.location}` : "",
+    `状态: ${statusLabel(cell.status)}`,
+    cell.evidence ? `证据: ${cell.evidence}` : "",
+    cell.witness ? `证人: ${cell.witness}` : "",
+    cell.suspicion ? `可疑点: ${cell.suspicion}` : "",
+    cell.conflict ? `矛盾点: ${cell.conflict}` : "",
+    cell.inference ? `推论: ${cell.inference}` : "",
+  ];
+  return lines.filter(Boolean).join("\n");
 }
 
 function slotIdFromRange(startDate, startTime, endDate, endTime) {

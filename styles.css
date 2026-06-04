@@ -383,6 +383,10 @@ textarea:focus {
   margin-bottom: 14px;
 }
 
+.workspace.no-editor {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .matrix-panel {
   overflow: hidden;
 }
@@ -659,15 +663,6 @@ textarea:focus {
   top: 12px;
 }
 
-.empty-editor {
-  min-height: 180px;
-}
-
-.empty-editor p {
-  color: var(--muted);
-  line-height: 1.55;
-}
-
 .editor-title {
   display: flex;
   justify-content: space-between;
@@ -861,11 +856,7 @@ textarea:focus {
     align-items: center;
   }
 
-  .empty-editor {
-    display: none;
-  }
-
-  .editor-panel:not(.empty-editor) {
+  .editor-panel {
     /* 手机端编辑面板切换逻辑：选中格子后作为底部弹窗出现，不再挤压时间线表格。 */
     position: fixed;
     left: 8px;

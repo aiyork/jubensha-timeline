@@ -132,7 +132,7 @@ h1 {
 
 .timeline-settings,
 .people-manager,
-.focus-controls,
+.weapon-tracker,
 .insight-grid article,
 .matrix-panel,
 .editor-panel,
@@ -146,14 +146,14 @@ h1 {
 
 .timeline-settings,
 .people-manager,
-.focus-controls,
+.weapon-tracker,
 .archive-panel {
   padding: 14px;
 }
 
 .timeline-settings h2,
 .people-manager h2,
-.focus-controls h2,
+.weapon-tracker h2,
 .editor-panel h2,
 .archive-panel h2 {
   font-size: 17px;
@@ -228,13 +228,31 @@ textarea:focus {
 }
 
 .person-chip {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 12px minmax(70px, 1fr) 22px;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   min-height: 30px;
-  border-radius: 999px;
+  border-radius: 7px;
   background: var(--panel-2);
-  padding: 3px 7px 3px 11px;
+  padding: 4px 6px;
+  font-weight: 800;
+}
+
+.person-color-dot {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(58, 50, 39, 0.18);
+  border-radius: 999px;
+  background: var(--person-color);
+}
+
+.person-name-input {
+  min-height: 24px;
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -245,6 +263,71 @@ textarea:focus {
   background: #fff;
   color: var(--danger);
   font-weight: 900;
+}
+
+.weapon-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.weapon-form .field:last-of-type {
+  grid-column: 1 / -1;
+}
+
+.weapon-actions {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.weapon-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.weapon-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8f3ea;
+  padding: 9px;
+}
+
+.weapon-record-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.weapon-record-main strong {
+  width: 100%;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.weapon-record-main p {
+  width: 100%;
+  color: var(--ink);
+}
+
+.weapon-record-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.weapon-record-actions .secondary-btn,
+.weapon-record-actions .danger-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
 }
 
 .insight-grid,
@@ -580,6 +663,31 @@ textarea:focus {
   margin-bottom: 10px;
 }
 
+.readonly-field output {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f7f2e9;
+  color: var(--ink);
+  padding: 8px 10px;
+  font-weight: 800;
+}
+
+.more-fields {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  margin-top: 8px;
+  padding: 8px 10px 2px;
+}
+
+.more-fields summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
 .editor-actions {
   margin-top: 12px;
 }
@@ -656,7 +764,8 @@ textarea:focus {
   }
 
   .settings-grid,
-  .people-manager .inline-form {
+  .people-manager .inline-form,
+  .weapon-form {
     grid-template-columns: 1fr;
   }
 
@@ -670,7 +779,7 @@ textarea:focus {
 
   .timeline-settings,
   .people-manager,
-  .focus-controls,
+  .weapon-tracker,
   .archive-panel,
   .insight-grid article,
   .focus-grid article,

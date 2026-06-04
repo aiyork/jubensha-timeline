@@ -16,6 +16,9 @@ const stepOptions = [1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 // 人物颜色分配逻辑：使用柔和色板，适合长时间推理查看，并保证文字可读。
 const personColors = ["#dbeafe", "#dcfce7", "#fef3c7", "#fae8ff", "#ffe4e6", "#ccfbf1", "#e0e7ff", "#f1f5f9"];
 
+const weaponStatusOptions = ["出现", "被拿走", "被使用", "被隐藏", "被发现", "下落不明"];
+const weaponSourceOptions = ["剧本", "搜证卡", "证词", "监控", "尸检", "其他"];
+
 const sampleBoard = {
   timeline: {
     startDate: "2026-06-04",
@@ -138,6 +141,21 @@ const sampleBoard = {
     }),
   },
   archive: [],
+  // 凶器记录的数据结构：独立记录凶器、人物、时间、地点、状态、证据和推论，不依赖表格格子存在。
+  weaponRecords: [
+    {
+      id: "weapon-sample-knife",
+      weaponName: "刀",
+      personId: "person-a",
+      personNameSnapshot: "A",
+      slotId: slotIdFromRange("2026-06-04", "18:30", "2026-06-04", "19:00"),
+      timeText: "18:30",
+      location: "厨房",
+      status: "被拿走",
+      source: "监控",
+      note: "A 在案发前接触过可能凶器",
+    },
+  ],
 };
 
 function App() {
@@ -146,11 +164,9 @@ function App() {
   const [newPerson, setNewPerson] = useState("");
   const [selectedCell, setSelectedCell] = useState(null);
   const [dragRange, setDragRange] = useState(null);
-  const [personFocus, setPersonFocus] = useState("all");
-  const [timeFocus, setTimeFocus] = useState("all");
 
   useEffect(() => {
-    // localStorage 保存逻辑：board 每次变化都自动写入当前浏览器，刷新后仍能恢复。
+    // localStorage 保存逻辑：board 每次变化都自动写入当前浏览器，包含时间线、人物、格子和凶器记录。
     localStorage.setItem(STORAGE_KEY, JSON.stringify(board));
   }, [board]);
 
@@ -189,8 +205,8 @@ function App() {
     }
 
     // 修改时间轴后会尝试保留旧格子内容，无法匹配的旧内容会进入“待整理内容”。
+    // 凶器记录 localStorage 保存逻辑：凶器时间保留原 timeText，不因时间轴变化被删除。
     setBoard((current) => remapBoardToSlots(current, timelineDraft, nextSlots));
-    setTimeFocus("all");
     setSelectedCell(null);
   }
 
@@ -214,9 +230,17 @@ function App() {
       ...current,
       people: current.people.filter((item) => item.id !== personId),
       cells: filterCells(current.cells, (key) => !key.startsWith(`${personId}:`)),
+      // 人物删除后凶器记录的保留逻辑：这里只删人物和表格格子，不删除 weaponRecords，显示时会标为“人物已删除”。
+      weaponRecords: current.weaponRecords || [],
     }));
-    if (personFocus === personId) setPersonFocus("all");
     setSelectedCell(null);
+  }
+
+  function renamePerson(personId, name) {
+    setBoard((current) => ({
+      ...current,
+      people: current.people.map((person) => (person.id === personId ? { ...person, name } : person)),
+    }));
   }
 
   function updateCell(field, value) {
@@ -290,14 +314,44 @@ function App() {
     setSelectedCell(normalizeRange({ personId, startIndex, endIndex, active: false }));
   }
 
+  function changeSelectedPerson(personId) {
+    if (!selectedCell || !board.people.some((person) => person.id === personId)) return;
+    // 行动记录人物切换逻辑：保留当前选择的时间范围，只把记录目标换到另一个人物行。
+    setSelectedCell((current) => ({ ...current, personId }));
+  }
+
+  function saveWeaponRecord(record) {
+    setBoard((current) => {
+      // 添加 / 编辑凶器记录逻辑：有 id 就覆盖原记录，没有 id 就创建新记录。
+      const nextRecord = normalizeWeaponRecord({
+        ...record,
+        id: record.id || createId("weapon"),
+      });
+      const exists = (current.weaponRecords || []).some((item) => item.id === nextRecord.id);
+      return {
+        ...current,
+        weaponRecords: exists
+          ? current.weaponRecords.map((item) => (item.id === nextRecord.id ? nextRecord : item))
+          : [...(current.weaponRecords || []), nextRecord],
+      };
+    });
+  }
+
+  function deleteWeaponRecord(recordId) {
+    if (!window.confirm("删除这条凶器追踪记录？")) return;
+    setBoard((current) => ({
+      ...current,
+      // 添加 / 编辑 / 删除凶器记录逻辑：删除只移除当前记录，不影响人物、时间线和表格内容。
+      weaponRecords: (current.weaponRecords || []).filter((record) => record.id !== recordId),
+    }));
+  }
+
   function resetSample() {
     if (!window.confirm("载入示例会覆盖当前数据，确定继续？")) return;
     const next = copyBoard(sampleBoard);
     setBoard(next);
     setTimelineDraft({ ...next.timeline });
     setSelectedCell(null);
-    setPersonFocus("all");
-    setTimeFocus("all");
   }
 
   function clearAll() {
@@ -308,12 +362,11 @@ function App() {
       timeSlots: generateSlots(todayString(), "18:00", todayString(), "22:00", 5),
       cells: {},
       archive: [],
+      weaponRecords: [],
     };
     setBoard(empty);
     setTimelineDraft({ ...empty.timeline });
     setSelectedCell(null);
-    setPersonFocus("all");
-    setTimeFocus("all");
   }
 
   return h("main", { className: "app-shell" }, [
@@ -332,6 +385,8 @@ function App() {
       h(CellEditor, {
         key: "editor",
         selected,
+        people: board.people,
+        changeSelectedPerson,
         updateCell,
         clearCell,
         closeEditor: () => setSelectedCell(null),
@@ -351,18 +406,17 @@ function App() {
         setNewPerson,
         addPerson,
         deletePerson,
+        renamePerson,
       }),
-      h(FocusControls, {
-        key: "focus",
+      h(WeaponTracker, {
+        key: "weapon",
         board,
-        personFocus,
-        timeFocus,
-        setPersonFocus,
-        setTimeFocus,
+        visibleSlots,
+        saveWeaponRecord,
+        deleteWeaponRecord,
       }),
     ]),
     h(InsightStrip, { key: "insights", insights }),
-    h(FocusPanels, { key: "focus-panels", board, personFocus, timeFocus }),
     h(ArchivePanel, { key: "archive", archive: board.archive }),
   ]);
 }
@@ -448,9 +502,9 @@ function TimelineSettings({ draft, setDraft, applyTimeline }) {
   ]);
 }
 
-function PeopleManager({ people, newPerson, setNewPerson, addPerson, deletePerson }) {
+function PeopleManager({ people, newPerson, setNewPerson, addPerson, deletePerson, renamePerson }) {
   return h("section", { className: "people-manager" }, [
-    h("h2", { key: "title" }, "人物"),
+    h("h2", { key: "title" }, "人物管理"),
     h("form", { className: "inline-form", onSubmit: addPerson, key: "form" }, [
       h("input", {
         key: "input",
@@ -465,8 +519,18 @@ function PeopleManager({ people, newPerson, setNewPerson, addPerson, deletePerso
       { className: "person-chips", key: "chips" },
       people.length
         ? people.map((person) =>
-            h("span", { className: "person-chip", key: person.id }, [
-              h("span", { key: "name" }, person.name),
+            h("div", { className: "person-chip", key: person.id, style: { "--person-color": person.color || getPersonColor(0) } }, [
+              h("span", { className: "person-color-dot", key: "color" }),
+              h("input", {
+                className: "person-name-input",
+                key: "name",
+                value: person.name,
+                title: "修改人物名字",
+                onChange: (event) => renamePerson(person.id, event.target.value),
+                onBlur: (event) => {
+                  if (!event.target.value.trim()) renamePerson(person.id, "未命名");
+                },
+              }),
               h("button", { type: "button", onClick: () => deletePerson(person.id), key: "delete" }, "×"),
             ])
           )
@@ -475,35 +539,147 @@ function PeopleManager({ people, newPerson, setNewPerson, addPerson, deletePerso
   ]);
 }
 
-function FocusControls({ board, personFocus, timeFocus, setPersonFocus, setTimeFocus }) {
-  return h("section", { className: "focus-controls" }, [
-    h("h2", { key: "title" }, "查看"),
-    h("div", { className: "settings-grid", key: "grid" }, [
+function WeaponTracker({ board, visibleSlots, saveWeaponRecord, deleteWeaponRecord }) {
+  const [draft, setDraft] = useState(() => emptyWeaponDraft());
+  const sortedRecords = (board.weaponRecords || []).slice().sort((a, b) => String(a.timeText).localeCompare(String(b.timeText)));
+
+  function updateDraft(field, value) {
+    setDraft((current) => {
+      if (field === "personId") {
+        // 人物和时间选择逻辑：选择人物时同时保存一份人物名快照，后续人物被删除也能知道原来是谁。
+        const person = board.people.find((item) => item.id === value);
+        return { ...current, personId: value, personNameSnapshot: person?.name || current.personNameSnapshot };
+      }
+      if (field === "slotId") {
+        const slot = visibleSlots.find((item) => item.id === value);
+        return { ...current, slotId: value, timeText: slot ? formatHeaderTime(slot) : current.timeText };
+      }
+      return { ...current, [field]: value };
+    });
+  }
+
+  function submitRecord(event) {
+    event.preventDefault();
+    if (!draft.weaponName.trim()) {
+      window.alert("请填写凶器名称。");
+      return;
+    }
+    saveWeaponRecord(draft);
+    setDraft(emptyWeaponDraft());
+  }
+
+  function editRecord(record) {
+    setDraft(normalizeWeaponRecord(record));
+  }
+
+  const timeOptions = visibleSlots.map((slot) => ({ id: slot.id, label: formatHeaderTime(slot) }));
+  const hasDeletedDraftPerson = draft.personId && !board.people.some((person) => person.id === draft.personId);
+  const hasOldDraftTime = draft.slotId && !visibleSlots.some((slot) => slot.id === draft.slotId);
+
+  return h("section", { className: "weapon-tracker" }, [
+    h("h2", { key: "title" }, "凶器追踪"),
+    h("form", { className: "weapon-form", onSubmit: submitRecord, key: "form" }, [
+      h(InputField, {
+        key: "weaponName",
+        label: "凶器名称",
+        type: "text",
+        value: draft.weaponName,
+        onChange: (value) => updateDraft("weaponName", value),
+      }),
       h("label", { className: "field", key: "person" }, [
-        h("span", { key: "span" }, "人物行动线"),
+        h("span", { key: "span" }, "对应人物"),
         h(
           "select",
-          { value: personFocus, onChange: (event) => setPersonFocus(event.target.value), key: "select" },
+          { value: draft.personId, onChange: (event) => updateDraft("personId", event.target.value), key: "select" },
           [
-            h("option", { value: "all", key: "all" }, "选择人物"),
+            h("option", { value: "", key: "empty" }, "未选择"),
+            hasDeletedDraftPerson
+              ? h("option", { value: draft.personId, key: "deleted" }, `人物已删除（${draft.personNameSnapshot || "未知"}）`)
+              : null,
             ...board.people.map((person) => h("option", { value: person.id, key: person.id }, person.name)),
           ]
         ),
       ]),
       h("label", { className: "field", key: "time" }, [
-        h("span", { key: "span" }, "时间段全员行动"),
+        h("span", { key: "span" }, "对应时间"),
         h(
           "select",
-          { value: timeFocus, onChange: (event) => setTimeFocus(event.target.value), key: "select" },
+          { value: draft.slotId, onChange: (event) => updateDraft("slotId", event.target.value), key: "select" },
           [
-            h("option", { value: "all", key: "all" }, "选择时间段"),
-            ...board.timeSlots
-              .slice()
-              .sort(sortSlots)
-              .map((slot) => h("option", { value: slot.id, key: slot.id }, slot.label)),
+            h("option", { value: "", key: "empty" }, "未选择"),
+            hasOldDraftTime ? h("option", { value: draft.slotId, key: "old" }, draft.timeText || "旧时间") : null,
+            ...timeOptions.map((slot) => h("option", { value: slot.id, key: slot.id }, slot.label)),
           ]
         ),
       ]),
+      h(InputField, {
+        key: "location",
+        label: "地点",
+        type: "text",
+        value: draft.location,
+        onChange: (value) => updateDraft("location", value),
+      }),
+      h("label", { className: "field", key: "status" }, [
+        h("span", { key: "span" }, "状态"),
+        h(
+          "select",
+          { value: draft.status, onChange: (event) => updateDraft("status", event.target.value), key: "select" },
+          weaponStatusOptions.map((status) => h("option", { value: status, key: status }, status))
+        ),
+      ]),
+      h("label", { className: "field", key: "source" }, [
+        h("span", { key: "span" }, "证据来源"),
+        h(
+          "select",
+          { value: draft.source, onChange: (event) => updateDraft("source", event.target.value), key: "select" },
+          weaponSourceOptions.map((source) => h("option", { value: source, key: source }, source))
+        ),
+      ]),
+      h(TextField, { key: "note", label: "备注 / 推论", value: draft.note, onChange: (value) => updateDraft("note", value) }),
+      h("div", { className: "editor-actions weapon-actions", key: "actions" }, [
+        h("button", { className: "primary-btn", type: "submit", key: "save" }, draft.id ? "保存修改" : "添加记录"),
+        draft.id ? h("button", { className: "secondary-btn", type: "button", onClick: () => setDraft(emptyWeaponDraft()), key: "cancel" }, "取消编辑") : null,
+      ]),
+    ]),
+    h(
+      "div",
+      { className: "weapon-list", key: "list" },
+      sortedRecords.length
+        ? sortedRecords.map((record) =>
+            h(WeaponRecordItem, {
+              key: record.id,
+              record,
+              people: board.people,
+              slots: visibleSlots,
+              onEdit: () => editRecord(record),
+              onDelete: () => deleteWeaponRecord(record.id),
+            })
+          )
+        : h("p", { className: "muted", key: "empty" }, "暂无凶器记录")
+    ),
+  ]);
+}
+
+function WeaponRecordItem({ record, people, slots, onEdit, onDelete }) {
+  const person = people.find((item) => item.id === record.personId);
+  const slot = slots.find((item) => item.id === record.slotId);
+  const personName = person ? person.name : record.personId ? `人物已删除（${record.personNameSnapshot || "未知"}）` : "未选择";
+  // 修改时间轴后的保留逻辑：如果原 slotId 找不到，就继续展示记录里的 timeText，而不是删除记录。
+  const timeText = slot ? formatHeaderTime(slot) : record.timeText || "未选择";
+
+  return h("article", { className: "weapon-record" }, [
+    h("div", { className: "weapon-record-main", key: "main" }, [
+      h("strong", { key: "weapon" }, `凶器：${record.weaponName || "未命名"}`),
+      h("span", { key: "person" }, `人物：${personName}`),
+      h("span", { key: "time" }, `时间：${timeText}`),
+      h("span", { key: "location" }, `地点：${record.location || "未填写"}`),
+      h("span", { key: "status" }, `状态：${record.status}`),
+      h("span", { key: "source" }, `证据来源：${record.source}`),
+      record.note ? h("p", { key: "note" }, `备注：${record.note}`) : null,
+    ]),
+    h("div", { className: "weapon-record-actions", key: "actions" }, [
+      h("button", { className: "secondary-btn", type: "button", onClick: onEdit, key: "edit" }, "编辑"),
+      h("button", { className: "danger-btn", type: "button", onClick: onDelete, key: "delete" }, "删除"),
     ]),
   ]);
 }
@@ -616,39 +792,60 @@ function TimelineCell({ person, slot, index, cell, selected, onMouseDown, onMous
   ]);
 }
 
-function CellEditor({ selected, updateCell, clearCell, closeEditor }) {
+function CellEditor({ selected, people, changeSelectedPerson, updateCell, clearCell, closeEditor }) {
   if (!selected) {
     return h("aside", { className: "editor-panel empty-editor" }, [
-      h("h2", { key: "title" }, "格子编辑"),
-      h("p", { key: "p" }, "点击或拖拽选择“人物 × 时间段”格子，填写地点、行动、证据和推论。"),
+      h("h2", { key: "title" }, "行动记录"),
+      h("p", { key: "p" }, "点击一个时间格，或在同一人物行里拖拽多个时间格，就可以填写人物、地点和干了什么。"),
     ]);
   }
 
   return h("aside", { className: "editor-panel" }, [
     h("div", { className: "editor-title", key: "title" }, [
       h("div", { key: "copy" }, [
-        h("h2", { key: "h2" }, selected.slots.length > 1 ? "编辑连续事件" : "编辑格子"),
+        h("h2", { key: "h2" }, "行动记录"),
         h("p", { key: "p" }, `${selected.person.name} · ${selected.startSlot.label} 到 ${selected.endSlot.label}`),
       ]),
       h("button", { className: "icon-btn", type: "button", onClick: closeEditor, key: "close" }, "关闭"),
     ]),
+    h("label", { className: "field", key: "person" }, [
+      h("span", { key: "span" }, "人物"),
+      h(
+        "select",
+        {
+          value: selected.person.id,
+          onChange: (event) => changeSelectedPerson(event.target.value),
+          key: "select",
+        },
+        people.map((person) => h("option", { value: person.id, key: person.id }, person.name))
+      ),
+    ]),
+    h("label", { className: "field readonly-field", key: "time" }, [
+      h("span", { key: "span" }, "时间"),
+      // 时间自动显示逻辑：单格显示一个时间段，拖拽多格时显示完整开始和结束。
+      h("output", { key: "output" }, `${selected.startSlot.label} 到 ${selected.endSlot.label}`),
+    ]),
     h(TextField, { key: "location", label: "地点", value: selected.cell.location, onChange: (value) => updateCell("location", value) }),
-    h(TextField, { key: "action", label: "行动", value: selected.cell.action, onChange: (value) => updateCell("action", value) }),
-    h(TextField, { key: "weapon", label: "凶器/物品", value: selected.cell.weapon, onChange: (value) => updateCell("weapon", value) }),
-    h(TextField, { key: "evidence", label: "证据来源", value: selected.cell.evidence, onChange: (value) => updateCell("evidence", value) }),
-    h(TextField, { key: "witness", label: "证人", value: selected.cell.witness, onChange: (value) => updateCell("witness", value) }),
-    h(TextField, { key: "suspicion", label: "可疑点", value: selected.cell.suspicion, onChange: (value) => updateCell("suspicion", value) }),
-    h(TextField, { key: "conflict", label: "矛盾点", value: selected.cell.conflict, onChange: (value) => updateCell("conflict", value) }),
-    h(TextField, { key: "inference", label: "当前推论", value: selected.cell.inference, onChange: (value) => updateCell("inference", value) }),
+    h(TextField, { key: "action", label: "干了什么", value: selected.cell.action, onChange: (value) => updateCell("action", value) }),
     h("label", { className: "field", key: "status" }, [
-      h("span", { key: "span" }, "状态标签"),
+      h("span", { key: "span" }, "状态"),
       h(
         "select",
         { value: selected.cell.status, onChange: (event) => updateCell("status", event.target.value), key: "select" },
         statusOptions.map((option) => h("option", { value: option.value, key: option.value }, option.label))
       ),
     ]),
+    h("details", { className: "more-fields", key: "more" }, [
+      h("summary", { key: "summary" }, "更多线索"),
+      h(TextField, { key: "weapon", label: "凶器/物品", value: selected.cell.weapon, onChange: (value) => updateCell("weapon", value) }),
+      h(TextField, { key: "evidence", label: "证据来源", value: selected.cell.evidence, onChange: (value) => updateCell("evidence", value) }),
+      h(TextField, { key: "witness", label: "证人", value: selected.cell.witness, onChange: (value) => updateCell("witness", value) }),
+      h(TextField, { key: "suspicion", label: "可疑点", value: selected.cell.suspicion, onChange: (value) => updateCell("suspicion", value) }),
+      h(TextField, { key: "conflict", label: "矛盾点", value: selected.cell.conflict, onChange: (value) => updateCell("conflict", value) }),
+      h(TextField, { key: "inference", label: "当前推论", value: selected.cell.inference, onChange: (value) => updateCell("inference", value) }),
+    ]),
     h("div", { className: "editor-actions", key: "actions" }, [
+      h("button", { className: "primary-btn", type: "button", onClick: closeEditor, key: "save" }, "保存记录"),
       h("button", { className: "secondary-btn", type: "button", onClick: () => updateCell("status", "unknown"), key: "unknown" }, "标记行踪不明"),
       h("button", { className: "secondary-btn", type: "button", onClick: () => updateCell("status", "conflict"), key: "conflict" }, "标记证词冲突"),
       h("button", { className: "danger-btn", type: "button", onClick: clearCell, key: "clear" }, "清空格子"),
@@ -681,18 +878,36 @@ function InputField({ label, type, value, onChange, min }) {
   ]);
 }
 
-function FocusPanels({ board, personFocus, timeFocus }) {
-  const person = board.people.find((item) => item.id === personFocus);
-  const slot = board.timeSlots.find((item) => item.id === timeFocus);
-  const personItems = person
-    ? board.timeSlots.slice().sort(sortSlots).map((timeSlot) => `${timeSlot.label}: ${summary(getCell(board, person.id, timeSlot.id))}`)
-    : [];
-  const timeItems = slot ? board.people.map((personItem) => `${personItem.name}: ${summary(getCell(board, personItem.id, slot.id))}`) : [];
+function emptyWeaponDraft() {
+  return {
+    id: "",
+    weaponName: "",
+    personId: "",
+    personNameSnapshot: "",
+    slotId: "",
+    timeText: "",
+    location: "",
+    status: "出现",
+    source: "剧本",
+    note: "",
+  };
+}
 
-  return h("section", { className: "focus-grid" }, [
-    h(InsightCard, { key: "person", title: person ? `${person.name} 的完整行动线` : "人物行动线", items: personItems }),
-    h(InsightCard, { key: "time", title: slot ? `${slot.label} 全员行动` : "时间段全员行动", items: timeItems }),
-  ]);
+function normalizeWeaponRecord(record) {
+  // 凶器记录的数据结构：统一补齐字段，避免旧 localStorage 缺字段时页面报错。
+  return {
+    ...emptyWeaponDraft(),
+    ...record,
+    weaponName: String(record?.weaponName || ""),
+    personId: String(record?.personId || ""),
+    personNameSnapshot: String(record?.personNameSnapshot || ""),
+    slotId: String(record?.slotId || ""),
+    timeText: String(record?.timeText || ""),
+    location: String(record?.location || ""),
+    status: weaponStatusOptions.includes(record?.status) ? record.status : "出现",
+    source: weaponSourceOptions.includes(record?.source) ? record.source : "剧本",
+    note: String(record?.note || ""),
+  };
 }
 
 function ArchivePanel({ archive }) {
@@ -739,6 +954,7 @@ function normalizeBoard(board) {
     timeSlots,
     cells: board.cells && typeof board.cells === "object" ? board.cells : {},
     archive: Array.isArray(board.archive) ? board.archive : [],
+    weaponRecords: Array.isArray(board.weaponRecords) ? board.weaponRecords.map(normalizeWeaponRecord) : [],
   };
 }
 

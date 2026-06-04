@@ -1,0 +1,706 @@
+:root {
+  --bg: #f4f1ea;
+  --panel: #fffdf8;
+  --panel-2: #ede7dc;
+  --ink: #27231d;
+  --muted: #70685c;
+  --line: #d7cebf;
+  --line-strong: #b9ad9b;
+  --accent: #2f6f73;
+  --accent-dark: #1d5357;
+  --danger: #a53a33;
+  --shadow: 0 16px 36px rgba(39, 31, 20, 0.09);
+  --normal: #fffdf8;
+  --suspicious: #fff1c9;
+  --conflict: #f8d8d3;
+  --key: #dfeee8;
+  --unknown: #e3e0d8;
+  /* 紧凑表格样式：集中控制推理表的列宽、行高和留白，方便继续微调。 */
+  --person-col-width: 104px;
+  --time-col-width: 82px;
+  --timeline-row-height: 58px;
+  --timeline-head-height: 34px;
+  --timeline-cell-pad: 5px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.app-shell {
+  width: min(1720px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 24px 0 42px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+h1 {
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.topbar p,
+.muted {
+  color: var(--muted);
+}
+
+.topbar p {
+  margin-top: 8px;
+}
+
+.top-actions,
+.editor-actions,
+.inline-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primary-btn,
+.secondary-btn,
+.danger-btn,
+.icon-btn {
+  min-height: 38px;
+  border-radius: 7px;
+  padding: 0 14px;
+  font-weight: 800;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: #fff;
+}
+
+.primary-btn:hover {
+  background: var(--accent-dark);
+}
+
+.secondary-btn,
+.icon-btn {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+.danger-btn {
+  background: #f4d9d5;
+  color: var(--danger);
+}
+
+.setup-panel {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.timeline-settings,
+.people-manager,
+.focus-controls,
+.insight-grid article,
+.matrix-panel,
+.editor-panel,
+.focus-grid article,
+.archive-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.timeline-settings,
+.people-manager,
+.focus-controls,
+.archive-panel {
+  padding: 14px;
+}
+
+.timeline-settings h2,
+.people-manager h2,
+.focus-controls h2,
+.editor-panel h2,
+.archive-panel h2 {
+  font-size: 17px;
+  margin-bottom: 11px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+  padding: 8px 10px;
+}
+
+input,
+select {
+  min-height: 38px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 58px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 111, 115, 0.14);
+}
+
+.timeline-preview {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.timeline-preview strong {
+  color: var(--ink);
+}
+
+.people-manager .inline-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+}
+
+.person-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  padding: 3px 7px 3px 11px;
+  font-weight: 800;
+}
+
+.person-chip button {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--danger);
+  font-weight: 900;
+}
+
+.insight-grid,
+.focus-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.focus-grid {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 14px;
+}
+
+.insight-grid article,
+.focus-grid article {
+  padding: 14px;
+}
+
+.insight-grid h2,
+.focus-grid h2 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.insight-grid ul,
+.focus-grid ul,
+.archive-panel ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.52;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.matrix-panel {
+  overflow: hidden;
+}
+
+.matrix-scroll {
+  max-height: 62vh;
+  overflow: auto;
+  position: relative;
+}
+
+.timeline-matrix {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.person-col {
+  /* grid 行列计算：人物列由 colgroup 固定宽度，避免正文内容撑开第一列。 */
+  width: var(--person-col-width);
+}
+
+.time-col {
+  /* grid 行列计算：每个时间列由 colgroup 固定宽度，连续事件块 colSpan 才能精准对齐。 */
+  width: var(--time-col-width);
+}
+
+.timeline-matrix th,
+.timeline-matrix td {
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.timeline-matrix thead th {
+  /* sticky 表头层级：第一排只作为时间表头，始终压在人物行动区域之上。 */
+  z-index: 4;
+}
+
+.timeline-matrix tbody tr {
+  /* 人物行动行高度统一：第二排开始每个人物行都保持一致，避免事件块错位。 */
+  height: var(--timeline-row-height);
+}
+
+.timeline-matrix tbody td {
+  position: relative;
+  z-index: 0;
+}
+
+.corner-cell,
+.time-header,
+.person-header {
+  background: #e9e1d4;
+  color: #4f473c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.corner-cell {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  /* 人物列宽度控制：左上角和人物列保持同宽，整体更像紧凑 Excel。 */
+  width: var(--person-col-width);
+  min-width: var(--person-col-width);
+  height: var(--timeline-head-height);
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.time-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  /* 时间格子宽度控制：表头和正文时间格保持同宽，减少横向占用。 */
+  width: var(--time-col-width);
+  min-width: var(--time-col-width);
+  height: var(--timeline-head-height);
+  padding: 5px 6px;
+  text-align: center;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.person-header {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  /* 人物列宽度控制：缩小纵轴人物列，给横向时间轴留空间。 */
+  width: var(--person-col-width);
+  min-width: var(--person-col-width);
+  padding: 6px 7px;
+  text-align: left;
+  border-right: 1px solid var(--line-strong);
+  background: #eee7dc;
+  font-size: 12px;
+  cursor: default;
+}
+
+.timeline-cell {
+  /* 人物行高控制：格子高度和按钮高度一起压缩，减少纵向滚动负担。 */
+  width: var(--time-col-width);
+  min-width: var(--time-col-width);
+  height: var(--timeline-row-height);
+  padding: 0;
+  background: var(--normal);
+  vertical-align: middle;
+}
+
+.status-normal {
+  background: var(--normal);
+}
+
+.status-suspicious {
+  background: var(--suspicious);
+}
+
+.status-conflict {
+  background: var(--conflict);
+}
+
+.status-key {
+  background: var(--key);
+}
+
+.status-unknown {
+  background: var(--unknown);
+}
+
+.timeline-cell.selected {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.timeline-cell:hover {
+  background-image: linear-gradient(rgba(47, 111, 115, 0.08), rgba(47, 111, 115, 0.08));
+}
+
+.event-cell {
+  z-index: 1;
+  padding: 0;
+}
+
+.cell-button {
+  width: 100%;
+  min-height: var(--timeline-row-height);
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  padding: var(--timeline-cell-pad);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  user-select: none;
+  cursor: crosshair;
+}
+
+.event-button {
+  /* 事件块填满格子的样式逻辑：按钮充满 colSpan 区域和人物行高度，只保留少量内边距。 */
+  min-height: calc(var(--timeline-row-height) - 2px);
+  height: calc(var(--timeline-row-height) - 2px);
+  align-content: center;
+  gap: 2px;
+  margin: 1px;
+  border-radius: 6px;
+  border: 1px solid rgba(39, 35, 29, 0.16);
+  border-left: 5px solid rgba(39, 35, 29, 0.24);
+  background: var(--person-color);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.52);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.event-status-suspicious .event-button {
+  /* 状态标签和人物颜色同时存在时的显示逻辑：保留人物底色，用边框提示状态。 */
+  border-color: #b7791f;
+  border-left-color: #b7791f;
+}
+
+.event-status-conflict .event-button {
+  border-color: #b94139;
+  border-left-color: #b94139;
+}
+
+.event-status-key .event-button {
+  border-color: #2f855a;
+  border-left-color: #2f855a;
+}
+
+.event-status-unknown .event-button {
+  border-color: #6b7280;
+  border-left-color: #6b7280;
+}
+
+.cell-action {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cell-location,
+.cell-status,
+.conflict-dot {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 2px 5px;
+  font-size: 10px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.cell-location {
+  background: rgba(255, 255, 255, 0.65);
+  color: #554d42;
+}
+
+.cell-status {
+  background: rgba(39, 35, 29, 0.08);
+  color: #40382e;
+}
+
+.conflict-dot {
+  background: #b94139;
+  color: #fff;
+}
+
+.event-detail {
+  color: #4b4439;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-panel {
+  padding: 14px;
+  position: sticky;
+  top: 12px;
+}
+
+.empty-editor {
+  min-height: 180px;
+}
+
+.empty-editor p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.editor-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.editor-title p {
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.editor-panel .field {
+  margin-bottom: 10px;
+}
+
+.editor-actions {
+  margin-top: 12px;
+}
+
+.archive-panel {
+  margin-top: 14px;
+}
+
+/* iPad / 平板适配：表格仍优先显示，编辑器下移，减少横向拥挤。 */
+@media (max-width: 1180px) {
+  :root {
+    --person-col-width: 96px;
+    --time-col-width: 78px;
+    --timeline-row-height: 56px;
+    --timeline-head-height: 32px;
+  }
+
+  .setup-panel,
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .matrix-scroll {
+    max-height: 56vh;
+  }
+
+  .editor-panel {
+    position: static;
+  }
+}
+
+/* 手机与小平板适配：控制区改为单列，时间线保持横向滚动。 */
+@media (max-width: 820px) {
+  :root {
+    --person-col-width: 88px;
+    --time-col-width: 70px;
+    --timeline-row-height: 52px;
+    --timeline-head-height: 30px;
+    --timeline-cell-pad: 4px;
+  }
+
+  .app-shell {
+    width: min(100% - 12px, 1720px);
+    padding-top: 12px;
+  }
+
+  .topbar,
+  .insight-grid,
+  .focus-grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .topbar {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .topbar p {
+    font-size: 13px;
+  }
+
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn,
+  .icon-btn {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .settings-grid,
+  .people-manager .inline-form {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-panel,
+  .insight-grid,
+  .focus-grid,
+  .workspace {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .timeline-settings,
+  .people-manager,
+  .focus-controls,
+  .archive-panel,
+  .insight-grid article,
+  .focus-grid article,
+  .editor-panel {
+    padding: 10px;
+  }
+
+  .matrix-scroll {
+    max-height: 58vh;
+  }
+
+  .corner-cell,
+  .person-header {
+    width: var(--person-col-width);
+    min-width: var(--person-col-width);
+  }
+
+  .time-header,
+  .timeline-cell {
+    width: var(--time-col-width);
+    min-width: var(--time-col-width);
+  }
+
+  .cell-action {
+    font-size: 11px;
+  }
+}
+
+/* 小手机适配：进一步压缩列宽，保留可点击面积和横向滚动。 */
+@media (max-width: 480px) {
+  :root {
+    --person-col-width: 76px;
+    --time-col-width: 58px;
+    --timeline-row-height: 48px;
+    --timeline-head-height: 28px;
+  }
+
+  .corner-cell,
+  .time-header,
+  .person-header {
+    font-size: 11px;
+  }
+
+  .cell-location,
+  .cell-status,
+  .conflict-dot {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+}

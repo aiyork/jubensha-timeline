@@ -506,6 +506,7 @@ textarea:focus {
 }
 
 .cell-location,
+.weapon-tag,
 .cell-status,
 .conflict-dot {
   width: fit-content;
@@ -520,6 +521,11 @@ textarea:focus {
 .cell-location {
   background: rgba(255, 255, 255, 0.65);
   color: #554d42;
+}
+
+.weapon-tag {
+  background: rgba(164, 59, 53, 0.12);
+  color: #8f2f2a;
 }
 
 .cell-status {

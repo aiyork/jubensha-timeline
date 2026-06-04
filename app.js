@@ -347,7 +347,7 @@ function App() {
 
   function changeSelectedPerson(personId) {
     if (!selectedCell || !board.people.some((person) => person.id === personId)) return;
-    // 行动记录人物切换逻辑：保留当前选择的时间范围，只把记录目标换到另一个人物行。
+    // 事件填写人物切换逻辑：保留当前选择的时间范围，只把记录目标换到另一个人物行。
     setSelectedCell((current) => ({ ...current, personId }));
   }
 
@@ -406,7 +406,7 @@ function App() {
 
   return h("main", { className: "app-shell" }, [
     h(Header, { key: "header", resetSample, clearAll }),
-    h("section", { className: "workspace", key: "workspace" }, [
+    h("section", { className: `workspace${selected ? " has-editor" : " no-editor"}`, key: "workspace" }, [
       h(Matrix, {
         key: "matrix",
         board,
@@ -877,16 +877,13 @@ function TimelineCell({ person, slot, index, cell, selected, pendingStart, onPoi
 
 function CellEditor({ selected, people, changeSelectedPerson, updateCell, clearCell, closeEditor }) {
   if (!selected) {
-    return h("aside", { className: "editor-panel empty-editor" }, [
-      h("h2", { key: "title" }, "行动记录"),
-      h("p", { key: "p" }, "点击一个时间格，或在同一人物行里拖拽多个时间格，就可以填写人物、地点和干了什么。"),
-    ]);
+    return null;
   }
 
   return h("aside", { className: "editor-panel" }, [
     h("div", { className: "editor-title", key: "title" }, [
       h("div", { key: "copy" }, [
-        h("h2", { key: "h2" }, "行动记录"),
+        h("h2", { key: "h2" }, "编辑事件"),
         h("p", { key: "p" }, `${selected.person.name} · ${selected.startSlot.label} 到 ${selected.endSlot.label}`),
       ]),
       h("button", { className: "icon-btn", type: "button", onClick: closeEditor, key: "close" }, "关闭"),

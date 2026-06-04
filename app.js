@@ -43,6 +43,7 @@ const sampleBoard = {
     [cellKey("person-victim", slotIdFromRange("2026-06-04", "18:30", "2026-06-04", "19:00"))]: makeCell({
       location: "书房",
       action: "和 A 争吵",
+      weapon: "裁纸刀",
       evidence: "B 听到争吵",
       witness: "B",
       suspicion: "争吵内容未知",
@@ -76,6 +77,7 @@ const sampleBoard = {
     [cellKey("person-a", slotIdFromRange("2026-06-04", "18:30", "2026-06-04", "19:00"))]: makeCell({
       location: "书房",
       action: "去找死者",
+      weapon: "裁纸刀",
       evidence: "本人承认",
       witness: "死者",
       suspicion: "与死者争吵",
@@ -589,6 +591,7 @@ function EventBlock({ person, segment, selected, onPick }) {
     h("button", { className: "cell-button event-button", type: "button", onClick: onPick, title, style: { "--person-color": person.color || getPersonColor(0) } }, [
       h("span", { className: "event-time", key: "time" }, eventRange),
       cell.action ? h("span", { className: "cell-action", key: "action" }, cell.action) : null,
+      cell.weapon ? h("span", { className: "weapon-tag", key: "weapon" }, `凶器: ${cell.weapon}`) : null,
       cell.location ? h("span", { className: "cell-location", key: "location" }, cell.location) : null,
       h("span", { className: "cell-status", key: "status" }, statusLabel(cell.status)),
       cell.evidence ? h("span", { className: "event-detail", key: "evidence" }, `证据: ${cell.evidence}`) : null,
@@ -631,6 +634,7 @@ function CellEditor({ selected, updateCell, clearCell, closeEditor }) {
     ]),
     h(TextField, { key: "location", label: "地点", value: selected.cell.location, onChange: (value) => updateCell("location", value) }),
     h(TextField, { key: "action", label: "行动", value: selected.cell.action, onChange: (value) => updateCell("action", value) }),
+    h(TextField, { key: "weapon", label: "凶器/物品", value: selected.cell.weapon, onChange: (value) => updateCell("weapon", value) }),
     h(TextField, { key: "evidence", label: "证据来源", value: selected.cell.evidence, onChange: (value) => updateCell("evidence", value) }),
     h(TextField, { key: "witness", label: "证人", value: selected.cell.witness, onChange: (value) => updateCell("witness", value) }),
     h(TextField, { key: "suspicion", label: "可疑点", value: selected.cell.suspicion, onChange: (value) => updateCell("suspicion", value) }),
@@ -919,6 +923,7 @@ function emptyCell() {
   return {
     location: "",
     action: "",
+    weapon: "",
     evidence: "",
     witness: "",
     suspicion: "",
@@ -937,7 +942,7 @@ function cellKey(personId, slotId) {
 }
 
 function isEmptyCell(cell) {
-  return !cell.location && !cell.action && !cell.evidence && !cell.witness && !cell.suspicion && !cell.conflict && !cell.inference && cell.status === "normal";
+  return !cell.location && !cell.action && !cell.weapon && !cell.evidence && !cell.witness && !cell.suspicion && !cell.conflict && !cell.inference && cell.status === "normal";
 }
 
 function filterCells(cells, predicate) {
@@ -945,7 +950,10 @@ function filterCells(cells, predicate) {
 }
 
 function summary(cell) {
-  if (cell.action || cell.location) return `${cell.action || "未写行动"}${cell.location ? `（${cell.location}）` : ""}`;
+  if (cell.action || cell.location || cell.weapon) {
+    const weapon = cell.weapon ? ` / 凶器: ${cell.weapon}` : "";
+    return `${cell.action || "未写行动"}${cell.location ? `（${cell.location}）` : ""}${weapon}`;
+  }
   return "空白";
 }
 
@@ -977,6 +985,7 @@ function buildEventTooltip(person, segment, cell) {
     `人物: ${person.name}`,
     `时间: ${formatEventRange(segment.startSlot, segment.endSlot)}`,
     cell.action ? `行动: ${cell.action}` : "",
+    cell.weapon ? `凶器: ${cell.weapon}` : "",
     cell.location ? `地点: ${cell.location}` : "",
     `状态: ${statusLabel(cell.status)}`,
     cell.evidence ? `证据: ${cell.evidence}` : "",

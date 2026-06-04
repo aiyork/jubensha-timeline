@@ -148,8 +148,13 @@ const sampleBoard = {
       weaponName: "刀",
       personId: "person-a",
       personNameSnapshot: "A",
-      slotId: slotIdFromRange("2026-06-04", "18:30", "2026-06-04", "19:00"),
-      timeText: "18:30",
+      startSlotId: slotIdFromRange("2026-06-04", "18:30", "2026-06-04", "19:00"),
+      endSlotId: slotIdFromRange("2026-06-04", "18:30", "2026-06-04", "19:00"),
+      startText: "18:30",
+      endText: "19:00",
+      timeText: "18:30-19:00",
+      startAbs: dateTimeToAbsoluteMinutes("2026-06-04", "18:30"),
+      endAbs: dateTimeToAbsoluteMinutes("2026-06-04", "19:00"),
       location: "厨房",
       status: "被拿走",
       source: "监控",
@@ -327,6 +332,8 @@ function App() {
         ...record,
         id: record.id || createId("weapon"),
       });
+      // localStorage 保存凶器时间段逻辑：保存完整 startAbs/endAbs 和一份 timeText，刷新或时间轴变化后都能显示。
+      nextRecord.timeText = weaponRangeText(nextRecord.startAbs, nextRecord.endAbs, nextRecord.startText, nextRecord.endText);
       const exists = (current.weaponRecords || []).some((item) => item.id === nextRecord.id);
       return {
         ...current,
@@ -541,7 +548,7 @@ function PeopleManager({ people, newPerson, setNewPerson, addPerson, deletePerso
 
 function WeaponTracker({ board, visibleSlots, saveWeaponRecord, deleteWeaponRecord }) {
   const [draft, setDraft] = useState(() => emptyWeaponDraft());
-  const sortedRecords = (board.weaponRecords || []).slice().sort((a, b) => String(a.timeText).localeCompare(String(b.timeText)));
+  const sortedRecords = (board.weaponRecords || []).slice().sort((a, b) => (a.startAbs || 0) - (b.startAbs || 0));
 
   function updateDraft(field, value) {
     setDraft((current) => {
@@ -550,9 +557,23 @@ function WeaponTracker({ board, visibleSlots, saveWeaponRecord, deleteWeaponReco
         const person = board.people.find((item) => item.id === value);
         return { ...current, personId: value, personNameSnapshot: person?.name || current.personNameSnapshot };
       }
-      if (field === "slotId") {
+      if (field === "startSlotId") {
         const slot = visibleSlots.find((item) => item.id === value);
-        return { ...current, slotId: value, timeText: slot ? formatHeaderTime(slot) : current.timeText };
+        return {
+          ...current,
+          startSlotId: value,
+          startAbs: Number.isFinite(slot?.start) ? slot.start : current.startAbs,
+          startText: slot ? formatWeaponBoundary(slot.start) : current.startText,
+        };
+      }
+      if (field === "endSlotId") {
+        const slot = visibleSlots.find((item) => item.id === value);
+        return {
+          ...current,
+          endSlotId: value,
+          endAbs: Number.isFinite(slot?.end) ? slot.end : current.endAbs,
+          endText: slot ? formatWeaponBoundary(slot.end) : current.endText,
+        };
       }
       return { ...current, [field]: value };
     });
@@ -564,6 +585,11 @@ function WeaponTracker({ board, visibleSlots, saveWeaponRecord, deleteWeaponReco
       window.alert("请填写凶器名称。");
       return;
     }
+    // 结束时间不能早于开始时间的校验逻辑：用内部完整分钟数比较，跨天也能正确判断。
+    if (Number.isFinite(draft.startAbs) && Number.isFinite(draft.endAbs) && draft.endAbs < draft.startAbs) {
+      window.alert("结束时间不能早于开始时间。");
+      return;
+    }
     saveWeaponRecord(draft);
     setDraft(emptyWeaponDraft());
   }
@@ -572,9 +598,14 @@ function WeaponTracker({ board, visibleSlots, saveWeaponRecord, deleteWeaponReco
     setDraft(normalizeWeaponRecord(record));
   }
 
-  const timeOptions = visibleSlots.map((slot) => ({ id: slot.id, label: formatHeaderTime(slot) }));
+  const timeOptions = visibleSlots.map((slot) => ({
+    id: slot.id,
+    startLabel: formatWeaponBoundary(slot.start),
+    endLabel: formatWeaponBoundary(slot.end),
+  }));
   const hasDeletedDraftPerson = draft.personId && !board.people.some((person) => person.id === draft.personId);
-  const hasOldDraftTime = draft.slotId && !visibleSlots.some((slot) => slot.id === draft.slotId);
+  const hasOldDraftStart = draft.startSlotId && !visibleSlots.some((slot) => slot.id === draft.startSlotId);
+  const hasOldDraftEnd = draft.endSlotId && !visibleSlots.some((slot) => slot.id === draft.endSlotId);
 
   return h("section", { className: "weapon-tracker" }, [
     h("h2", { key: "title" }, "凶器追踪"),
@@ -600,15 +631,27 @@ function WeaponTracker({ board, visibleSlots, saveWeaponRecord, deleteWeaponReco
           ]
         ),
       ]),
-      h("label", { className: "field", key: "time" }, [
-        h("span", { key: "span" }, "对应时间"),
+      h("label", { className: "field", key: "startTime" }, [
+        h("span", { key: "span" }, "开始时间"),
         h(
           "select",
-          { value: draft.slotId, onChange: (event) => updateDraft("slotId", event.target.value), key: "select" },
+          { value: draft.startSlotId, onChange: (event) => updateDraft("startSlotId", event.target.value), key: "select" },
           [
             h("option", { value: "", key: "empty" }, "未选择"),
-            hasOldDraftTime ? h("option", { value: draft.slotId, key: "old" }, draft.timeText || "旧时间") : null,
-            ...timeOptions.map((slot) => h("option", { value: slot.id, key: slot.id }, slot.label)),
+            hasOldDraftStart ? h("option", { value: draft.startSlotId, key: "old" }, draft.startText || "旧开始时间") : null,
+            ...timeOptions.map((slot) => h("option", { value: slot.id, key: slot.id }, slot.startLabel)),
+          ]
+        ),
+      ]),
+      h("label", { className: "field", key: "endTime" }, [
+        h("span", { key: "span" }, "结束时间"),
+        h(
+          "select",
+          { value: draft.endSlotId, onChange: (event) => updateDraft("endSlotId", event.target.value), key: "select" },
+          [
+            h("option", { value: "", key: "empty" }, "未选择"),
+            hasOldDraftEnd ? h("option", { value: draft.endSlotId, key: "old" }, draft.endText || "旧结束时间") : null,
+            ...timeOptions.map((slot) => h("option", { value: slot.id, key: slot.id }, slot.endLabel)),
           ]
         ),
       ]),
@@ -662,16 +705,17 @@ function WeaponTracker({ board, visibleSlots, saveWeaponRecord, deleteWeaponReco
 
 function WeaponRecordItem({ record, people, slots, onEdit, onDelete }) {
   const person = people.find((item) => item.id === record.personId);
-  const slot = slots.find((item) => item.id === record.slotId);
+  const startSlot = slots.find((item) => item.id === record.startSlotId);
+  const endSlot = slots.find((item) => item.id === record.endSlotId);
   const personName = person ? person.name : record.personId ? `人物已删除（${record.personNameSnapshot || "未知"}）` : "未选择";
-  // 修改时间轴后的保留逻辑：如果原 slotId 找不到，就继续展示记录里的 timeText，而不是删除记录。
-  const timeText = slot ? formatHeaderTime(slot) : record.timeText || "未选择";
+  // 时间轴修改后保留旧凶器记录的逻辑：新时间轴找不到原始 slot 时，继续展示保存过的 timeText。
+  const timeText = formatWeaponRecordRange(record, startSlot, endSlot);
 
   return h("article", { className: "weapon-record" }, [
     h("div", { className: "weapon-record-main", key: "main" }, [
       h("strong", { key: "weapon" }, `凶器：${record.weaponName || "未命名"}`),
       h("span", { key: "person" }, `人物：${personName}`),
-      h("span", { key: "time" }, `时间：${timeText}`),
+      h("span", { key: "time" }, `时间段：${timeText}`),
       h("span", { key: "location" }, `地点：${record.location || "未填写"}`),
       h("span", { key: "status" }, `状态：${record.status}`),
       h("span", { key: "source" }, `证据来源：${record.source}`),
@@ -884,8 +928,13 @@ function emptyWeaponDraft() {
     weaponName: "",
     personId: "",
     personNameSnapshot: "",
-    slotId: "",
+    startSlotId: "",
+    endSlotId: "",
+    startText: "",
+    endText: "",
     timeText: "",
+    startAbs: NaN,
+    endAbs: NaN,
     location: "",
     status: "出现",
     source: "剧本",
@@ -895,14 +944,29 @@ function emptyWeaponDraft() {
 
 function normalizeWeaponRecord(record) {
   // 凶器记录的数据结构：统一补齐字段，避免旧 localStorage 缺字段时页面报错。
+  const legacySlotId = String(record?.slotId || "");
+  const startSlotId = String(record?.startSlotId || legacySlotId);
+  const endSlotId = String(record?.endSlotId || legacySlotId);
+  const legacyTimeText = String(record?.timeText || "");
+  const startText = String(record?.startText || legacyTimeText);
+  const endText = String(record?.endText || legacyTimeText);
+  const rawStartAbs = Number(record?.startAbs);
+  const rawEndAbs = Number(record?.endAbs);
+  const startAbs = Number.isFinite(rawStartAbs) ? rawStartAbs : NaN;
+  const endAbs = Number.isFinite(rawEndAbs) ? rawEndAbs : NaN;
   return {
     ...emptyWeaponDraft(),
     ...record,
     weaponName: String(record?.weaponName || ""),
     personId: String(record?.personId || ""),
     personNameSnapshot: String(record?.personNameSnapshot || ""),
-    slotId: String(record?.slotId || ""),
-    timeText: String(record?.timeText || ""),
+    startSlotId,
+    endSlotId,
+    startText,
+    endText,
+    timeText: weaponRangeText(startAbs, endAbs, startText, endText) || legacyTimeText,
+    startAbs,
+    endAbs,
     location: String(record?.location || ""),
     status: weaponStatusOptions.includes(record?.status) ? record.status : "出现",
     source: weaponSourceOptions.includes(record?.source) ? record.source : "剧本",
@@ -1194,6 +1258,32 @@ function formatHeaderTime(slot) {
 
 function formatEventRange(startSlot, endSlot) {
   return `${formatHeaderTime(startSlot)}-${minutesToTime(endSlot.end)}`;
+}
+
+function formatWeaponBoundary(value) {
+  if (!Number.isFinite(value)) return "";
+  const parts = absoluteMinutesToParts(value);
+  return `${parts.month}/${parts.day} ${parts.clock}`;
+}
+
+function weaponRangeText(startAbs, endAbs, startText, endText) {
+  // 跨天时间段显示逻辑：同一天只显示 HH:mm-HH:mm，跨天显示日期，避免 23:50-00:20 产生误解。
+  if (Number.isFinite(startAbs) && Number.isFinite(endAbs)) {
+    const startParts = absoluteMinutesToParts(startAbs);
+    const endParts = absoluteMinutesToParts(endAbs);
+    const sameDay = startParts.month === endParts.month && startParts.day === endParts.day;
+    return sameDay
+      ? `${startParts.clock}-${endParts.clock}`
+      : `${startParts.month}/${startParts.day} ${startParts.clock} - ${endParts.month}/${endParts.day} ${endParts.clock}`;
+  }
+  if (startText && endText) return startText === endText ? startText : `${startText}-${endText}`;
+  return startText || endText || "";
+}
+
+function formatWeaponRecordRange(record, startSlot, endSlot) {
+  // 时间轴修改后保留旧凶器记录的逻辑：能匹配新时间轴就重新计算，不能匹配就用记录里保存的旧文本。
+  if (startSlot && endSlot) return weaponRangeText(startSlot.start, endSlot.end, record.startText, record.endText);
+  return record.timeText || weaponRangeText(record.startAbs, record.endAbs, record.startText, record.endText) || "未选择";
 }
 
 function buildEventTooltip(person, segment, cell) {

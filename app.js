@@ -169,6 +169,7 @@ function App() {
   const [newPerson, setNewPerson] = useState("");
   const [selectedCell, setSelectedCell] = useState(null);
   const [dragRange, setDragRange] = useState(null);
+  const [tapRangeStart, setTapRangeStart] = useState(null);
 
   useEffect(() => {
     // localStorage 保存逻辑：board 每次变化都自动写入当前浏览器，包含时间线、人物、格子和凶器记录。
@@ -284,13 +285,20 @@ function App() {
     const keys = new Set(selected.slots.map((slot) => cellKey(selected.person.id, slot.id)));
     setBoard((current) => ({ ...current, cells: filterCells(current.cells, (cellId) => !keys.has(cellId)) }));
     setSelectedCell(null);
+    setTapRangeStart(null);
   }
 
-  function startRangeSelect(personId, index) {
-    // 鼠标拖拽选择格子的逻辑：按下时记录人物行和起点，只允许在同一个人物行里扩展。
+  function startRangeSelect(personId, index, pointerType = "mouse") {
+    // iPad / 手机触摸选择格子的逻辑：pointer 事件同时支持鼠标、触控板和手指。
+    // 触摸端如果拖拽不顺手，可以先点开始格，再点同一人物行的结束格，自动选中中间范围。
+    if (pointerType !== "mouse" && tapRangeStart?.personId === personId && tapRangeStart.startIndex !== index) {
+      finishTapRange(personId, index);
+      return;
+    }
     const range = { personId, startIndex: index, endIndex: index, active: true };
     setDragRange(range);
     setSelectedCell(range);
+    setTapRangeStart({ personId, startIndex: index });
   }
 
   function moveRangeSelect(personId, index) {
@@ -312,11 +320,29 @@ function App() {
     }
     setDragRange(null);
     setSelectedCell(nextRange);
+    setTapRangeStart({ personId, startIndex: nextRange.startIndex });
   }
 
   function selectRange(personId, startIndex, endIndex) {
     setDragRange(null);
     setSelectedCell(normalizeRange({ personId, startIndex, endIndex, active: false }));
+    setTapRangeStart(null);
+  }
+
+  function finishTapRange(personId, endIndex) {
+    if (!tapRangeStart || tapRangeStart.personId !== personId) return;
+    const nextRange = normalizeRange({ personId, startIndex: tapRangeStart.startIndex, endIndex, active: false });
+    const slots = visibleSlots.slice(nextRange.startIndex, nextRange.endIndex + 1);
+    const hasExisting = slots.some((slot) => !isEmptyCell(getCell(board, personId, slot.id)));
+    if (slots.length > 1 && hasExisting && !window.confirm("划选范围内已有内容，是否覆盖原内容？")) {
+      setDragRange(null);
+      setTapRangeStart(null);
+      setSelectedCell(null);
+      return;
+    }
+    setDragRange(null);
+    setTapRangeStart(null);
+    setSelectedCell(nextRange);
   }
 
   function changeSelectedPerson(personId) {
@@ -359,6 +385,7 @@ function App() {
     setBoard(next);
     setTimelineDraft({ ...next.timeline });
     setSelectedCell(null);
+    setTapRangeStart(null);
   }
 
   function clearAll() {
@@ -374,6 +401,7 @@ function App() {
     setBoard(empty);
     setTimelineDraft({ ...empty.timeline });
     setSelectedCell(null);
+    setTapRangeStart(null);
   }
 
   return h("main", { className: "app-shell" }, [
@@ -384,6 +412,7 @@ function App() {
         board,
         visibleSlots,
         selectedCell,
+        tapRangeStart,
         selectRange,
         startRangeSelect,
         moveRangeSelect,
@@ -444,75 +473,77 @@ function Header({ resetSample, clearAll }) {
 function TimelineSettings({ draft, setDraft, applyTimeline }) {
   const step = draft.stepMode === "custom" ? Number(draft.customStep) : Number(draft.stepMode);
   const preview = generateSlots(draft.startDate, draft.start, draft.endDate, draft.end, step);
-  return h("form", { className: "timeline-settings", onSubmit: applyTimeline }, [
-    h("h2", { key: "title" }, "时间轴设置"),
-    h("div", { className: "settings-grid", key: "fields" }, [
-      h(InputField, {
-        key: "startDate",
-        label: "开始日期",
-        type: "date",
-        value: draft.startDate,
-        onChange: (value) => setDraft((current) => ({ ...current, startDate: value })),
-      }),
-      h(InputField, {
-        key: "start",
-        label: "开始时间",
-        type: "time",
-        value: draft.start,
-        onChange: (value) => setDraft((current) => ({ ...current, start: value })),
-      }),
-      h(InputField, {
-        key: "endDate",
-        label: "结束日期",
-        type: "date",
-        value: draft.endDate,
-        onChange: (value) => setDraft((current) => ({ ...current, endDate: value })),
-      }),
-      h(InputField, {
-        key: "end",
-        label: "结束时间",
-        type: "time",
-        value: draft.end,
-        onChange: (value) => setDraft((current) => ({ ...current, end: value })),
-      }),
-      h("label", { className: "field", key: "step" }, [
-        h("span", { key: "span" }, "时间粒度"),
-        h(
-          "select",
-          {
-            key: "select",
-            value: draft.stepMode,
-            onChange: (event) => setDraft((current) => ({ ...current, stepMode: event.target.value })),
-          },
-          [
-            ...stepOptions.map((minutes) => h("option", { value: String(minutes), key: minutes }, `${minutes} 分钟`)),
-            h("option", { value: "custom", key: "custom" }, "自定义分钟数"),
-          ]
-        ),
+  return h("details", { className: "timeline-settings collapsible-card", open: true }, [
+    h("summary", { key: "summary" }, "时间轴设置"),
+    h("form", { className: "card-body", onSubmit: applyTimeline, key: "form" }, [
+      h("div", { className: "settings-grid", key: "fields" }, [
+        h(InputField, {
+          key: "startDate",
+          label: "开始日期",
+          type: "date",
+          value: draft.startDate,
+          onChange: (value) => setDraft((current) => ({ ...current, startDate: value })),
+        }),
+        h(InputField, {
+          key: "start",
+          label: "开始时间",
+          type: "time",
+          value: draft.start,
+          onChange: (value) => setDraft((current) => ({ ...current, start: value })),
+        }),
+        h(InputField, {
+          key: "endDate",
+          label: "结束日期",
+          type: "date",
+          value: draft.endDate,
+          onChange: (value) => setDraft((current) => ({ ...current, endDate: value })),
+        }),
+        h(InputField, {
+          key: "end",
+          label: "结束时间",
+          type: "time",
+          value: draft.end,
+          onChange: (value) => setDraft((current) => ({ ...current, end: value })),
+        }),
+        h("label", { className: "field", key: "step" }, [
+          h("span", { key: "span" }, "时间粒度"),
+          h(
+            "select",
+            {
+              key: "select",
+              value: draft.stepMode,
+              onChange: (event) => setDraft((current) => ({ ...current, stepMode: event.target.value })),
+            },
+            [
+              ...stepOptions.map((minutes) => h("option", { value: String(minutes), key: minutes }, `${minutes} 分钟`)),
+              h("option", { value: "custom", key: "custom" }, "自定义分钟数"),
+            ]
+          ),
+        ]),
+        draft.stepMode === "custom"
+          ? h(InputField, {
+              key: "custom",
+              label: "自定义分钟",
+              type: "number",
+              min: "1",
+              value: draft.customStep,
+              onChange: (value) => setDraft((current) => ({ ...current, customStep: value })),
+            })
+          : null,
       ]),
-      draft.stepMode === "custom"
-        ? h(InputField, {
-            key: "custom",
-            label: "自定义分钟",
-            type: "number",
-            min: "1",
-            value: draft.customStep,
-            onChange: (value) => setDraft((current) => ({ ...current, customStep: value })),
-          })
-        : null,
+      h("div", { className: "timeline-preview", key: "preview" }, [
+        h("strong", { key: "count" }, `${formatDate(draft.startDate)} ${draft.start} 到 ${formatDate(draft.endDate)} ${draft.end} 将生成 ${preview.length} 个时间段`),
+        h("span", { key: "sample" }, preview.slice(0, 5).map((slot) => slot.label).join(" | ") || "请设置有效时间"),
+      ]),
+      h("button", { className: "primary-btn", type: "submit", key: "button" }, "应用时间轴"),
     ]),
-    h("div", { className: "timeline-preview", key: "preview" }, [
-      h("strong", { key: "count" }, `${formatDate(draft.startDate)} ${draft.start} 到 ${formatDate(draft.endDate)} ${draft.end} 将生成 ${preview.length} 个时间段`),
-      h("span", { key: "sample" }, preview.slice(0, 5).map((slot) => slot.label).join(" | ") || "请设置有效时间"),
-    ]),
-    h("button", { className: "primary-btn", type: "submit", key: "button" }, "应用时间轴"),
   ]);
 }
 
 function PeopleManager({ people, newPerson, setNewPerson, addPerson, deletePerson, renamePerson }) {
-  return h("section", { className: "people-manager" }, [
-    h("h2", { key: "title" }, "人物管理"),
-    h("form", { className: "inline-form", onSubmit: addPerson, key: "form" }, [
+  return h("details", { className: "people-manager collapsible-card", open: true }, [
+    h("summary", { key: "summary" }, "人物管理"),
+    h("form", { className: "inline-form card-body", onSubmit: addPerson, key: "form" }, [
       h("input", {
         key: "input",
         value: newPerson,
@@ -607,9 +638,9 @@ function WeaponTracker({ board, visibleSlots, saveWeaponRecord, deleteWeaponReco
   const hasOldDraftStart = draft.startSlotId && !visibleSlots.some((slot) => slot.id === draft.startSlotId);
   const hasOldDraftEnd = draft.endSlotId && !visibleSlots.some((slot) => slot.id === draft.endSlotId);
 
-  return h("section", { className: "weapon-tracker" }, [
-    h("h2", { key: "title" }, "凶器追踪"),
-    h("form", { className: "weapon-form", onSubmit: submitRecord, key: "form" }, [
+  return h("details", { className: "weapon-tracker collapsible-card", open: true }, [
+    h("summary", { key: "summary" }, "凶器追踪"),
+    h("form", { className: "weapon-form card-body", onSubmit: submitRecord, key: "form" }, [
       h(InputField, {
         key: "weaponName",
         label: "凶器名称",
@@ -747,7 +778,7 @@ function InsightCard({ title, items }) {
   ]);
 }
 
-function Matrix({ board, visibleSlots, selectedCell, selectRange, startRangeSelect, moveRangeSelect, finishRangeSelect }) {
+function Matrix({ board, visibleSlots, selectedCell, tapRangeStart, selectRange, startRangeSelect, moveRangeSelect, finishRangeSelect }) {
   return h("section", { className: "matrix-panel" }, [
     h("div", { className: "matrix-scroll", key: "scroll" }, [
       h("table", { className: "timeline-matrix", key: "table" }, [
@@ -788,9 +819,10 @@ function Matrix({ board, visibleSlots, selectedCell, selectRange, startRangeSele
                       index: segment.startIndex,
                       cell: segment.cell,
                       selected: isRangeSelected(selectedCell, person.id, segment.startIndex, segment.endIndex),
-                      onMouseDown: () => startRangeSelect(person.id, segment.startIndex),
-                      onMouseEnter: () => moveRangeSelect(person.id, segment.startIndex),
-                      onMouseUp: () => finishRangeSelect(person.id, segment.startIndex),
+                      pendingStart: isTapRangeStart(tapRangeStart, person.id, segment.startIndex),
+                      onPointerDown: (event) => startRangeSelect(person.id, segment.startIndex, event.pointerType),
+                      onPointerEnter: () => moveRangeSelect(person.id, segment.startIndex),
+                      onPointerUp: () => finishRangeSelect(person.id, segment.startIndex),
                     })
               ),
             ]);
@@ -823,11 +855,18 @@ function EventBlock({ person, segment, selected, onPick }) {
   ]);
 }
 
-function TimelineCell({ person, slot, index, cell, selected, onMouseDown, onMouseEnter, onMouseUp }) {
+function TimelineCell({ person, slot, index, cell, selected, pendingStart, onPointerDown, onPointerEnter, onPointerUp }) {
   const hasConflict = cell.status === "conflict" || Boolean(cell.conflict.trim());
   const blank = isEmptyCell(cell);
-  return h("td", { className: `timeline-cell status-${cell.status}${selected ? " selected" : ""}` }, [
-    h("button", { className: "cell-button", type: "button", onMouseDown, onMouseEnter, onMouseUp, title: `${person.name} ${slot.label}` }, [
+  return h("td", { className: `timeline-cell status-${cell.status}${selected ? " selected" : ""}${pendingStart ? " tap-start" : ""}` }, [
+    h("button", {
+      className: "cell-button",
+      type: "button",
+      onPointerDown,
+      onPointerEnter,
+      onPointerUp,
+      title: `${person.name} ${slot.label}`,
+    }, [
       !blank && cell.action ? h("span", { className: "cell-action", key: "action" }, cell.action) : null,
       !blank && cell.location ? h("span", { className: "cell-location", key: "location" }, cell.location) : null,
       !blank ? h("span", { className: "cell-status", key: "status" }, statusLabel(cell.status)) : null,
@@ -1144,6 +1183,10 @@ function isRangeSelected(range, personId, startIndex, endIndex) {
   if (!range || range.personId !== personId) return false;
   const selected = normalizeRange(range);
   return selected.startIndex <= endIndex && selected.endIndex >= startIndex;
+}
+
+function isTapRangeStart(range, personId, index) {
+  return Boolean(range && range.personId === personId && range.startIndex === index);
 }
 
 function buildInsights(board) {
